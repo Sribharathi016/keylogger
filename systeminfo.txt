@@ -1,0 +1,5 @@
+Public IP Address: 157.49.96.171Processor: Intel64 Family 6 Model 140 Stepping 1, GenuineIntel
+System: Windows 10.0.22631
+Machine: AMD64
+Hostname: ROSHAN
+Private IP Address: 192.168.60.149
